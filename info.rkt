@@ -14,7 +14,10 @@
   '("base"))
 
 (define build-deps
-  '("scribble-lib"
+  '("chk-lib"
+    "sandbox-lib"
+    "threading-doc"
+    "scribble-lib"
     "racket-doc"
     "rackunit-lib"
     ))

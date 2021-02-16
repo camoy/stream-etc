@@ -58,59 +58,100 @@
     (map cdr c)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; trace threading
+;; threading (data)
+
+;; A `take-clause` is a clause that takes a prefix from the stream.
+;;   - `proc` is a procedure that takes a stream and returns a prefix.
+(struct take-clause (proc) #:property prop:procedure 0)
+
+;; A `guard-clause` is a clause that checks the prefix against a predicate.
+;;   - `proc` is a predicate over the current prefix.
+(struct guard-clause (proc) #:property prop:procedure 0)
+
+;; A `repeat-clause` should repeat the processing pipeline.
+(struct repeat-clause ())
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; threading (syntax classes)
 
 (begin-for-syntax
-  (define-syntax-class hole-expr
+  ;; The RHS of a clause that potentially contains a hole.
+  (define-syntax-class clause-expr
     #:datum-literals (_)
-    (pattern (f:id x ... _ y ...)
-             #:with proc #'(λ (z) (f x ... z y ...)))
-    (pattern proc:expr))
+    (pattern (fn:expr pre:expr ... _ post:expr ...)
+             #:with norm #'(λ (hole) (fn pre ... hole post ...)))
+    (pattern norm:expr))
 
-  (define-splicing-syntax-class pipe
-    (pattern (~seq #:take e:hole-expr)
-             #:with proc #'(pipe-take e.proc))
-    (pattern e:hole-expr
-             #:with proc #'(pipe-test e.proc))
+  ;; A `stream~>` clause.
+  (define-splicing-syntax-class clause
+    (pattern e:clause-expr
+             #:with norm #'(guard-clause e.norm))
+    (pattern (~seq #:take e:clause-expr)
+             #:with norm #'(take-clause e.norm))
     (pattern #:repeat
-             #:with proc #'(pipe-repeat)))
+             #:with norm #'(repeat-clause)))
   )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; threading operations
 
 ;; Macro for "stream threading" that can provide a more declarative way
 ;; of specifying a stream predicate.
 (define-syntax (stream~> stx)
   (syntax-parse stx
-    [(_ ?t:expr ?p:pipe ...)
-     #'(stream~>-pipeline (stream->list ?t)
-                          (list ?p.proc ...))]))
+    [(_ e:expr cl:clause ...+)
+     #'(stream~>-run (stream->list e)
+                     (list cl.norm ...))]))
 
 ;; The λ version of stream threading.
 (define-syntax (λ-stream~> stx)
   (syntax-parse stx
     [(_ x ...)
-     #'(λ (t) (stream~> t x ...))]))
+     #'(λ (st) (stream~> st x ...))]))
 
 ;; Returns a stream predicate that computes whether a stream satisfies the
 ;; constraints given in the list of procedures.
-(define (stream~>-pipeline t procs)
+(define (stream~>-run lst clauses)
   (let/cc return
     (for/fold ([pre null]
-               [post t])
-              ([proc (in-list procs)])
+               [cur lst])
+              ([clause (in-list clauses)])
       (cond
-        [(pipe-take? proc)
-         (when (empty? post)
+        [(take-clause? clause)
+         (when (empty? cur)
            (return #t))
-         (define pre* (proc post))
-         (values pre* (drop post (length pre*)))]
-        [(pipe-test? proc)
-         (unless (proc pre)
+         (define pre* ((take-clause-proc clause) cur))
+         (values pre* (drop cur (length pre*)))]
+        [(guard-clause? clause)
+         (unless ((guard-clause-proc clause) pre)
            (return #f))
-         (values pre post)]
-        [(pipe-repeat? proc)
-         (return (stream~>-pipeline post procs))]))
+         (values pre cur)]
+        [(repeat-clause? clause)
+         (return (stream~>-run cur clauses))]))
     #t))
 
-(struct pipe-take (proc) #:property prop:procedure 0)
-(struct pipe-test (proc) #:property prop:procedure 0)
-(struct pipe-repeat ())
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; tests
+
+(module+ test
+  (require chk
+           racket/function)
+
+  (define (parity=? x y)
+    (= (modulo x 2) (modulo y 2)))
+
+  (define (ok? s)
+    (stream~> s
+              #:take (takef _ odd?)
+              (negate empty?)
+              #:take (takef _ zero?)
+              #:repeat))
+
+  (chk
+   (stream-group-by '("1" "2" "3" "4") string->number parity=?)
+   '(("1" "3") ("2" "4"))
+
+   #:t (ok? '(1 3 0 0 1 7))
+   #:t (ok? '(1 0 1 0 1 0))
+   #:! #:t (ok? '(5 8))
+   ))
