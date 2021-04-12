@@ -8,7 +8,9 @@
  (contract-out
   [stream-group-by (->* (stream? (-> any/c any))
                         ((-> any/c any/c boolean?))
-                        (listof list?))])
+                        (listof list?))]
+  [stream-sum (-> (stream/c number?) number?)]
+  [stream-member? (-> stream? any/c boolean?)])
  (rename-out [λ-stream~> lambda-stream~>])
  stream~>
  λ-stream~>)
@@ -56,6 +58,15 @@
           (sort c < #:key car))))
   (for/list ([c (in-list (sort sorted-classes < #:key caar))])
     (map cdr c)))
+
+;; Sums the numbers of a stream.
+(define (stream-sum st)
+  (stream-fold + 0 st))
+
+;; Returns if a value is an element of a stream.
+(define (stream-member? st x)
+  (for/or ([y (in-stream st)])
+    (equal? y x)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; threading (data)
@@ -150,6 +161,14 @@
   (chk
    (stream-group-by '("1" "2" "3" "4") string->number parity=?)
    '(("1" "3") ("2" "4"))
+
+   (stream-sum '()) 0
+   (stream-sum '(1 2 3)) 6
+
+   #:! #:t (stream-member? '() 42)
+   #:! #:t (stream-member? '(1 2) 42)
+   #:t (stream-member? '(1 42) 42)
+   #:t (stream-member? '(42 1) 42)
 
    #:t (ok? '(1 3 0 0 1 7))
    #:t (ok? '(1 0 1 0 1 0))

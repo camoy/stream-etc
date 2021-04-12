@@ -51,6 +51,25 @@ compatibility may not be maintained.
     (= (modulo x 2) (modulo y 2)))
   (stream-group-by '("1" "2" "3" "4") string->number parity=?)]
 
+@defproc[(stream-sum [stream (stream/c number?)])
+         number?]{
+  Returns the sum of numbers in a stream.
+}
+
+@examples[#:eval evaluator
+  (stream-sum '())
+  (stream-sum '(1 2 3))]
+
+@defproc[(stream-member? [stream stream?]
+                         [elem any/c])
+         boolean?]{
+  Returns if @racket[elem] is in the given stream.
+}
+
+@examples[#:eval evaluator
+  (stream-member? '(1 2 3) 42)
+  (stream-member? '(1 2 3) 2)]
+
 @section{Threading}
 
 Forms that provide functionality akin to that of the
