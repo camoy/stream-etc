@@ -18,6 +18,7 @@
      '(require racket/contract
                racket/function
                racket/list
+               racket/stream
                stream-etc)))
 
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -50,6 +51,16 @@ compatibility may not be maintained.
   (define (parity=? x y)
     (= (modulo x 2) (modulo y 2)))
   (stream-group-by '("1" "2" "3" "4") string->number parity=?)]
+
+@defproc[(stream-map* [f procedure?] [stream stream?] ...) stream?]{
+  Returns a stream this is the result of applying @racket[f]
+  to the elements of the streams, just like @racket[map].
+  The only difference from @racket[stream-map] is this one is
+  variable arity.
+}
+
+@examples[#:eval evaluator
+  (stream->list (stream-map* + '(1 2 3) '(4 5 6)))]
 
 @defproc[(stream-sum [stream (stream/c number?)])
          number?]{

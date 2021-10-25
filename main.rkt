@@ -9,6 +9,9 @@
   [stream-group-by (->* (stream? (-> any/c any))
                         ((-> any/c any/c boolean?))
                         (listof list?))]
+  [stream-map* (->i ([f (rst) (procedure-arity-includes/c (length rst))])
+                    #:rest [rst (non-empty-listof stream?)]
+                    [res stream?])]
   [stream-sum (-> (stream/c number?) number?)]
   [stream-member? (-> stream? any/c boolean?)])
  (rename-out [λ-stream~> lambda-stream~>])
@@ -20,6 +23,7 @@
 
 (require (for-syntax racket/base
                      syntax/parse)
+         racket/function
          racket/list
          racket/stream)
 
@@ -58,6 +62,14 @@
           (sort c < #:key car))))
   (for/list ([c (in-list (sort sorted-classes < #:key caar))])
     (map cdr c)))
+
+;; Like `stream-map`, but variable-arity like `map`.
+(define (stream-map* f . sts)
+  (let go ([sts sts])
+    (if (andmap (negate stream-empty?) sts)
+        (stream-cons (apply f (map stream-first sts))
+                     (go (map stream-rest sts)))
+        empty-stream)))
 
 ;; Sums the numbers of a stream.
 (define (stream-sum st)
@@ -161,6 +173,10 @@
   (chk
    (stream-group-by '("1" "2" "3" "4") string->number parity=?)
    '(("1" "3") ("2" "4"))
+
+   (stream->list (stream-map* add1 '(1 2 3)))  '(2 3 4)
+   (stream->list (stream-map* + '(1 2 3) '(5 6 7)))  '(6 8 10)
+   (stream->list (stream-map* + '(1 2 3) '(5)))  '(6)
 
    (stream-sum '()) 0
    (stream-sum '(1 2 3)) 6
