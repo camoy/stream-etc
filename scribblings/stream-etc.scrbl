@@ -45,41 +45,41 @@ compatibility may not be maintained.
   Within each equivalence class,
   @racket[stream-group-by] preserves the ordering of the original list.
   Equivalence classes themselves are in order of first appearance in the input.
-}
 
-@examples[#:eval evaluator
-  (define (parity=? x y)
-    (= (modulo x 2) (modulo y 2)))
-  (stream-group-by '("1" "2" "3" "4") string->number parity=?)]
+  @examples[#:eval evaluator
+    (define (parity=? x y)
+      (= (modulo x 2) (modulo y 2)))
+    (stream-group-by '("1" "2" "3" "4") string->number parity=?)]
+}
 
 @defproc[(stream-map* [f procedure?] [stream stream?] ...) stream?]{
   Returns a stream this is the result of applying @racket[f]
   to the elements of the streams, just like @racket[map].
   The only difference from @racket[stream-map] is this one is
   variable arity.
-}
 
-@examples[#:eval evaluator
-  (stream->list (stream-map* + '(1 2 3) '(4 5 6)))]
+  @examples[#:eval evaluator
+    (stream->list (stream-map* + '(1 2 3) '(4 5 6)))]
+}
 
 @defproc[(stream-sum [stream (stream/c number?)])
          number?]{
   Returns the sum of numbers in a stream.
-}
 
-@examples[#:eval evaluator
-  (stream-sum '())
-  (stream-sum '(1 2 3))]
+  @examples[#:eval evaluator
+    (stream-sum '())
+    (stream-sum '(1 2 3))]
+}
 
 @defproc[(stream-member? [stream stream?]
                          [elem any/c])
          boolean?]{
   Returns if @racket[elem] is in the given stream.
-}
 
-@examples[#:eval evaluator
-  (stream-member? '(1 2 3) 42)
-  (stream-member? '(1 2 3) 2)]
+  @examples[#:eval evaluator
+    (stream-member? '(1 2 3) 42)
+    (stream-member? '(1 2 3) 2)]
+}
 
 @section{Threading}
 
@@ -122,18 +122,18 @@ only specialized to stream predicates.
   If it's an application with a hole,
   it is transformed into a one-argument procedure
   where the argument is located at the hole.
-}
 
-@examples[#:eval evaluator
-  (define (ok? s)
-    (stream~> s
-              #:take (takef _ odd?)
-              (negate empty?)
-              #:take (takef _ zero?)
-              #:repeat))
-  (ok? '(1 3 0 0 1 7))
-  (ok? '(1 0 1 0 1 0))
-  (ok? '(5 8))]
+  @examples[#:eval evaluator
+    (define (ok? s)
+      (stream~> s
+                #:take (takef _ odd?)
+                (negate empty?)
+                #:take (takef _ zero?)
+                #:repeat))
+    (ok? '(1 3 0 0 1 7))
+    (ok? '(1 0 1 0 1 0))
+    (ok? '(5 8))]
+}
 
 @deftogether[(@defform*[((lambda-stream~> clause ...))]
               @defform[(λ-stream~> clause ...)])]{
